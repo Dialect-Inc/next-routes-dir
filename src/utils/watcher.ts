@@ -1,8 +1,8 @@
 import path from 'node:path'
 
 import chokidar from 'chokidar'
-import pDebounce from '@commonjs/p-debounce'
-import chalk from '@commonjs/chalk'
+import pDebounce from 'p-debounce'
+import chalk from 'chalk'
 import { generatePagesFromRoutes } from '~/utils/generate.js'
 
 const debouncedGeneratePagesFromRoutes = pDebounce(
