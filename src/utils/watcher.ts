@@ -5,12 +5,13 @@ import pDebounce from 'p-debounce'
 import chalk from 'chalk'
 import { generatePagesFromRoutes } from '~/utils/generate.js'
 
-const debouncedGeneratePagesFromRoutes = pDebounce(
-	() => generatePagesFromRoutes(),
-	200
-)
 
 export async function setupRoutesDirectoryWatcher({ routesDir, pagesDir }: { routesDir: string, pagesDir: string }) {
+	const debouncedGeneratePagesFromRoutes = pDebounce(
+		() => generatePagesFromRoutes({ routesDir, pagesDir }),
+		200
+	)
+
 	chokidar
 		.watch(routesDir, { ignoreInitial: true })
 		.on('add', async () => {
