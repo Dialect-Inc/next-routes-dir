@@ -150,9 +150,9 @@ export async function generatePagesFromRoutes() {
 				}
 
 				await writePagesFile(outdent`
-				import { ${variableName} } from '${routesDir}/${trimExtension(routeFileRelativePath)}'
-				export default ${variableName}
-			`)
+					import { ${variableName} } from '${routesDir}/${trimExtension(routeFileRelativePath)}'
+					export default ${variableName}
+				`)
 				return
 			}
 
