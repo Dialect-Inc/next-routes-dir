@@ -10,7 +10,7 @@ const debouncedGeneratePagesFromRoutes = pDebounce(
 	200
 )
 
-export async function setupRoutesDirectoryWatcher({ routesDir }: { routesDir: string }) {
+export async function setupRoutesDirectoryWatcher({ routesDir, pagesDir }: { routesDir: string, pagesDir: string }) {
 	chokidar
 		.watch(routesDir, { ignoreInitial: true })
 		.on('add', async () => {
@@ -34,5 +34,5 @@ export async function setupRoutesDirectoryWatcher({ routesDir }: { routesDir: st
 		})
 
 	process.stderr.write('Generated `pages/` from `routes/`\n')
-	await generatePagesFromRoutes()
+	await generatePagesFromRoutes({ pagesDir, routesDir })
 }

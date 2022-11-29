@@ -14,13 +14,9 @@ import * as esbuild from 'esbuild'
 	Generates a `/pages` directory based on the `/routes` directory (a manual alternative to
 	the `/app` directory introduced in Next.js 13 that has some performance problems while in beta)
 */
-export async function generatePagesFromRoutes() {
+export async function generatePagesFromRoutes({ pagesDir: generatedPagesDir, routesDir }: { pagesDir: string, routesDir: string }) {
 	const trimExtension = (filePath: string) => filePath.replace(/\.[^/.]+$/, "")
 
-	const dialectWebsiteDir = path.join(__dirname, '..')
-	// Using `pages/` instead of `src/pages/` to emphasize that these files are generated
-	const generatedPagesDir = path.join(dialectWebsiteDir, 'pages')
-	const routesDir = path.join(dialectWebsiteDir, 'src/routes')
 	/**
 		A map of the relative `routes/` file path (e.g. `blog/[slug]/page.tsx`) to the corresponding relative `pages/` file path (e.g. `blog/slug.tsx`)
 	*/
