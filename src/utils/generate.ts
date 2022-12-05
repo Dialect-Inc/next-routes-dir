@@ -182,8 +182,8 @@ export async function generatePagesFromRoutes({
 						if (variableName === undefined) {
 							// Assume default export
 							await writePagesFile(outdent`
-								import Route from '${routesDir}/${trimExtension(routeFileRelativePath)}'
-								export default Route
+								import Route from '${routesDir}/${trimExtension(routeFileRelativePath)}';
+								export default Route;
 							`)
 							return
 						}
@@ -241,9 +241,9 @@ export async function generatePagesFromRoutes({
 						)
 
 					let pagesFileContents = outdent({ trimTrailingNewline: false })`
-						import React from 'react'
+						import React from 'react';
 						${layoutImports}
-						import RouteComponent from '${trimExtension(routeFileFullPath)}'
+						import RouteComponent from '${trimExtension(routeFileFullPath)}';
 					`
 
 					if (componentWrapperFunction !== undefined) {
