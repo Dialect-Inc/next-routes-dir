@@ -191,8 +191,8 @@ export async function generatePagesFromRoutes({
 						await writePagesFile(outdent`
 							import { ${variableName} } from '${routesDir}/${trimExtension(
 							routeFileRelativePath
-						)}'
-							export default ${variableName}
+						)}';
+							export default ${variableName};
 						`)
 						return
 					}
@@ -205,7 +205,7 @@ export async function generatePagesFromRoutes({
 						.map(
 							(layoutPath) =>
 								outdent`
-									import ${getLayoutName(layoutPath)} from '${routesDir}/${layoutPath}/layout'
+									import ${getLayoutName(layoutPath)} from '${routesDir}/${layoutPath}/layout';
 								`
 						)
 						.join('\n')
@@ -247,26 +247,26 @@ export async function generatePagesFromRoutes({
 					`
 
 					if (componentWrapperFunction !== undefined) {
-						pagesFileContents += outdent`
+						pagesFileContents += outdent({ trimTrailingNewline: false })`
 							import { ${componentWrapperFunction.name} } from '${componentWrapperFunction.path}';
 						`
 					}
 
 					if (getServerSidePropsExportNamedDeclaration !== undefined) {
 						pagesFileContents += outdent({ trimTrailingNewline: false })`
-							export { getServerSideProps } from '${trimExtension(routeFileFullPath)}'
+							export { getServerSideProps } from '${trimExtension(routeFileFullPath)}';
 						`
 					}
 
 					if (componentWrapperFunction === undefined) {
 						pagesFileContents += outdent`
-							export default () => ${getComponentJsxString(layoutPaths)}
+							export default () => (${getComponentJsxString(layoutPaths)});
 						`
 					} else {
 						pagesFileContents += outdent`
 							export default ${componentWrapperFunction.name}(() => (
 								${getComponentJsxString(layoutPaths)}
-							))
+							));
 						`
 					}
 
