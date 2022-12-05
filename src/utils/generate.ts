@@ -1,5 +1,5 @@
 /**
-	This file has to be CommonJS because importing it from Webpack doesn't work if it's ESM (even dynamic imports seem to still forever).
+	This file has to be CommonJS because importing it from Webpack doesn't work if it's ESM.
 */
 import * as path from 'node:path'
 import * as readdirp from 'readdirp'
