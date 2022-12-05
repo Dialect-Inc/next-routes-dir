@@ -7,23 +7,14 @@ import pDebounce from 'p-debounce'
 import { type GenerateOptions } from '~/types/options.js'
 import { generatePagesFromRoutes } from '~/utils/generate.js'
 
-export async function setupRoutesDirectoryWatcher({
-	routesDir,
-	pagesDir,
-	componentWrapperFunction,
-}: GenerateOptions) {
+export async function setupRoutesDirectoryWatcher(options: GenerateOptions) {
 	const debouncedGeneratePagesFromRoutes = pDebounce(
-		async () =>
-			generatePagesFromRoutes({
-				routesDir,
-				pagesDir,
-				componentWrapperFunction,
-			}),
+		async () => generatePagesFromRoutes(options),
 		200
 	)
 
 	chokidar
-		.watch(routesDir, { ignoreInitial: true })
+		.watch(options.routesDir, { ignoreInitial: true })
 		.on('add', async () => {
 			await debouncedGeneratePagesFromRoutes()
 			process.stderr.write(
@@ -32,8 +23,8 @@ export async function setupRoutesDirectoryWatcher({
 		})
 		.on('change', async (filePath) => {
 			if (
-				filePath === path.join(routesDir, '_app.tsx') ||
-				filePath === path.join(routesDir, '_document.tsx')
+				filePath === path.join(options.routesDir, '_app.tsx') ||
+				filePath === path.join(options.routesDir, '_document.tsx')
 			) {
 				process.stderr.write(
 					chalk.dim(
@@ -47,5 +38,5 @@ export async function setupRoutesDirectoryWatcher({
 		})
 
 	process.stderr.write('Generated `pages/` from `routes/`\n')
-	await generatePagesFromRoutes({ pagesDir, routesDir })
+	await generatePagesFromRoutes(options)
 }
