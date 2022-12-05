@@ -1,7 +1,5 @@
 # next-routes-dir
 
-> **Note:** `next-routes-dir` is currently hardcoded to support its use-case in the [Dialect](https://github.com/Dialect-Inc) codebase, so it likely won't work as-is with your project. Before the code is rewritten to generalize to all Next.js projects, you're free to fork the project and tweak it to support your own use case!
-
 `next-routes-dir` provides a way to use Next.js 13's `app/` directory colocation features while still using the feature-set of the old `pages/` directory. With `next-routes-dir`, you can create a `routes/` folder in your Next.js app that mirrors the folder structure of Next.js 13's `app/` directory, and it will automatically generate a valid `pages/` directory based on the structure of the `routes/` directory.
 
 > You might be wondering, why don't we use Next.js 13's `app/` directory directly? In addition to the `app/` directory still being in beta, there are many incompatibilities and breaking changes from the `pages/` directory that require a substantial amount of work to migrate. However, the co-location features of the `app/` directory is very useful, so `next-routes-dir` provides a way to leverage the co-located structure of files inside the `app/` directory while still maintaining the same feature set provided by the `pages/` directory.
@@ -28,7 +26,7 @@ pages/
     - [id].tsx
 ```
 
-could be converted into the following `routes/` directory:  
+could be converted into the following `routes/` directory:
 
 ```
 routes/
@@ -44,7 +42,7 @@ routes/
       - [id]/
         page.tsx
 ```
-    
+
 Then, import and run `setupRoutesDirectoryWatcher` in your `next.config.js` file:
 
 ```ts
@@ -60,4 +58,34 @@ setupRoutesDirectoryWatcher({
 module.exports = {
   // ...
 }
+```
+
+If you want to wrap your exported components inside a wrapper function, you can pass `componentWrapperFunction`:
+
+```ts
+// next.config.js
+const { setupRoutesDirectoryWatcher } = require('next-routes-dir')
+const path = require('path')
+
+setupRoutesDirectoryWatcher({
+  routesDir: path.join(__dirname, 'routes'),
+  pagesDir: path.join(__dirname, 'src/pages'),
+  componentWrapperFunction: {
+    name: '__definePage',
+    path: '~/utils/page'
+  }
+})
+
+module.exports = {
+  // ...
+}
+```
+
+This would generate component exports that look like the following:
+
+```jsx
+import { __definePage } from '~/utils/page'
+export default __definePage(() => (
+  <div>...</div>
+))
 ```
