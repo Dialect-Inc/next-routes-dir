@@ -11,6 +11,8 @@ import { outdent } from 'outdent'
 import * as readdirp from 'readdirp'
 import invariant from 'tiny-invariant'
 
+import { type GenerateOptions } from '~/types/options.js'
+
 /**
 	Generates a `/pages` directory based on the `/routes` directory (a manual alternative to
 	the `/app` directory introduced in Next.js 13 that has some performance problems while in beta)
@@ -19,11 +21,7 @@ export async function generatePagesFromRoutes({
 	pagesDir: generatedPagesDir,
 	routesDir,
 	componentWrapperFunction,
-}: {
-	pagesDir: string
-	routesDir: string
-	componentWrapperFunction?: { path: string; name: string }
-}) {
+}: GenerateOptions) {
 	const trimExtension = (filePath: string) => filePath.replace(/\.[^/.]+$/, '')
 
 	/**

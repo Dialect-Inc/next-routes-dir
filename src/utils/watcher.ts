@@ -1,14 +1,24 @@
 import path from 'node:path'
 
+import chalk from 'chalk'
 import chokidar from 'chokidar'
 import pDebounce from 'p-debounce'
-import chalk from 'chalk'
+
+import { type GenerateOptions } from '~/types/options.js'
 import { generatePagesFromRoutes } from '~/utils/generate.js'
 
-
-export async function setupRoutesDirectoryWatcher({ routesDir, pagesDir }: { routesDir: string, pagesDir: string }) {
+export async function setupRoutesDirectoryWatcher({
+	routesDir,
+	pagesDir,
+	componentWrapperFunction,
+}: GenerateOptions) {
 	const debouncedGeneratePagesFromRoutes = pDebounce(
-		() => generatePagesFromRoutes({ routesDir, pagesDir }),
+		async () =>
+			generatePagesFromRoutes({
+				routesDir,
+				pagesDir,
+				componentWrapperFunction,
+			}),
 		200
 	)
 
@@ -16,7 +26,9 @@ export async function setupRoutesDirectoryWatcher({ routesDir, pagesDir }: { rou
 		.watch(routesDir, { ignoreInitial: true })
 		.on('add', async () => {
 			await debouncedGeneratePagesFromRoutes()
-			process.stderr.write(chalk.dim('Change in `routes/` detected, `/pages` regenerated\n'))
+			process.stderr.write(
+				chalk.dim('Change in `routes/` detected, `/pages` regenerated\n')
+			)
 		})
 		.on('change', async (filePath) => {
 			if (
