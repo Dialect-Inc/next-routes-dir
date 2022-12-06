@@ -16,31 +16,33 @@ Then, refactor your existing `pages/` folder to the `app/` directory structure i
 
 For example, the following `pages/` directory:
 
-```
-pages/
-  - index.tsx
-  - login.tsx
-  - app
-    - index.tsx
-  - profile
-    - [id].tsx
+```text
+.
+└── pages/
+    ├── index.tsx
+    ├── login.tsx
+    ├── app/
+    │   └── index.tsx
+    └── profile/
+        └── [id].tsx
 ```
 
 could be converted into the following `routes/` directory:
 
-```
-routes/
-  - login/
-    - page.tsx
-  - (marketing)/
-    - page.tsx
-  - (app)/
-    - layout.tsx
-    - app/
-      - page.tsx
-    - profile/
-      - [id]/
-        page.tsx
+```text
+.
+└── routes/
+    ├── login/
+    │   └── page.tsx
+    ├── (marketing)/
+    │   └── page.tsx
+    └── (app)/
+        ├── layout.tsx
+        ├── app/
+        │   └── page.tsx
+        └── profile/
+            └── [id]/
+                └── page.tsx
 ```
 
 Then, import and run `setupRoutesDirectoryWatcher` in your `next.config.js` file:
