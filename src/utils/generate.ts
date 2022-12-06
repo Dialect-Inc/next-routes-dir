@@ -197,10 +197,17 @@ export async function generatePagesFromRoutes({
 						return
 					}
 
-					const layoutPaths = routeGroupMap.get(routeFileRelativePath) ?? []
+					const potentialLayoutPaths =
+						routeGroupMap.get(routeFileRelativePath) ?? []
+					const layoutPaths = potentialLayoutPaths.filter(
+						(layoutPath) =>
+							fs.existsSync(path.join(routesDir, layoutPath, 'layout.tsx')) ||
+							fs.existsSync(path.join(routesDir, layoutPath, 'layout.jsx'))
+					)
 
 					const getLayoutName = (layoutPath: string) =>
 						pascalCase(layoutPath.replaceAll(/\W/g, '')) + 'Layout'
+
 					const layoutImports = layoutPaths
 						.map(
 							(layoutPath) =>
@@ -290,12 +297,27 @@ export async function generatePagesFromRoutes({
 
 	// Copy over `_app.tsx` and `_document.tsx`
 	// These files can't be imported but need to be copied because they are special files in Next.js and can do stuff like importing global CSS
-	await fs.promises.writeFile(
-		path.join(generatedPagesDir, '_app.tsx'),
-		await fs.promises.readFile(path.join(routesDir, '_app.tsx'))
-	)
-	await fs.promises.writeFile(
-		path.join(generatedPagesDir, '_document.tsx'),
-		await fs.promises.readFile(path.join(routesDir, '_document.tsx'))
-	)
+	if (fs.existsSync(path.join(routesDir, '_app.tsx'))) {
+		await fs.promises.writeFile(
+			path.join(generatedPagesDir, '_app.tsx'),
+			await fs.promises.readFile(path.join(routesDir, '_app.tsx'))
+		)
+	} else if (fs.existsSync(path.join(routesDir, '_app.jsx'))) {
+		await fs.promises.writeFile(
+			path.join(generatedPagesDir, '_app.jsx'),
+			await fs.promises.readFile(path.join(routesDir, '_app.jsx'))
+		)
+	}
+
+	if (fs.existsSync(path.join(routesDir, '_document.tsx'))) {
+		await fs.promises.writeFile(
+			path.join(generatedPagesDir, '_document.tsx'),
+			await fs.promises.readFile(path.join(routesDir, '_document.tsx'))
+		)
+	} else if (fs.existsSync(path.join(routesDir, '_document.jsx'))) {
+		await fs.promises.writeFile(
+			path.join(generatedPagesDir, '_document.jsx'),
+			await fs.promises.readFile(path.join(routesDir, '_document.jsx'))
+		)
+	}
 }
