@@ -32,10 +32,10 @@ could be converted into the following `routes/` directory:
 routes/
   - login/
     - page.tsx
-  // specify different layouts for marketing pages and app pages without affecting the URL
   - (marketing)/
     - page.tsx
   - (app)/
+    - layout.tsx
     - app/
       - page.tsx
     - profile/
