@@ -8,7 +8,7 @@ import * as acorn from 'acorn'
 import { pascalCase } from 'change-case'
 import * as esbuild from 'esbuild'
 import { outdent } from 'outdent'
-import * as readdirp from 'readdirp'
+import readdirp from 'readdirp'
 import invariant from 'tiny-invariant'
 
 import { type GenerateOptions } from '~/types/options.js'
