@@ -179,7 +179,11 @@ export async function generatePagesFromRoutes({
 						const variableName =
 							exportNamedDeclaration?.declaration?.declarations?.[0]?.id?.name
 
-						if (variableName === undefined) {
+						const exportDefaultDeclaration = routeFileAst.body.find(
+							(node: any) => node.type === 'ExportDefaultDeclaration'
+						)
+
+						if (exportDefaultDeclaration !== undefined || variableName === undefined) {
 							// Assume default export
 							await writePagesFile(outdent`
 								import Route from '${routesDir}/${trimExtension(routeFileRelativePath)}';
