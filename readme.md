@@ -91,3 +91,53 @@ export default __definePage(() => (
   <div>...</div>
 ))
 ```
+
+## Caveats
+
+Since the generated pages simply re-export  `getServerSideProps` from the routes file, Next.js is unable to treeshake the `getServerSideProps` from the original routes file. To work around this, you can use a custom Webpack plugin like the following:
+
+```typescript
+// next.config.js
+module.exports = {
+  webpack(config) {
+    // Use string-replace-loader last, so that it runs _after_ everything has been transformed to JavaScript
+    config.module.rules.unshift({
+      test(id: string) {
+        return routesDirs.some((routesDir) => isPathInside(id, routesDir))
+      },
+      loader: 'string-replace-loader',
+      options: {
+        search: /^[\S\s]*$/,
+        replace(match: string) {
+          const ast = acorn.parse(match, {
+            ecmaVersion: 2020,
+            sourceType: 'module'
+          }) as any
+
+          // Find the `getServerSideProps` named export
+          const exportNamedDeclaration = ast.body.find(
+            (node: any) =>
+              (node.type === 'ExportNamedDeclaration' &&
+                // Matches `export const getServerSideProps = ...`
+                node.declaration?.declarations?.[0]?.id?.name ===
+                  'getServerSideProps') ||
+              // Matches `export function getServerSideProps() { ... }`
+              node.declaration?.id === 'getServerSideProps'
+          )
+
+          // If a `getServerSideProps` export can't be found, return the original source code
+          if (exportNamedDeclaration === undefined) {
+            return match
+          }
+
+          const replacement =
+            match.slice(0, exportNamedDeclaration.start) +
+            match.slice(exportNamedDeclaration.end)
+
+          return replacement
+        }
+      }
+    })
+  }
+}
+```
