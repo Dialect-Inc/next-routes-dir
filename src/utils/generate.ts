@@ -225,7 +225,7 @@ export async function generatePagesFromRoutes({
 						remainingLayoutPaths: string[]
 					): string => {
 						if (remainingLayoutPaths.length === 0) {
-							return `<RouteComponent />`
+							return `<RouteComponent {...props} />`
 						} else {
 							invariant(
 								remainingLayoutPaths[0],
@@ -271,11 +271,11 @@ export async function generatePagesFromRoutes({
 
 					if (componentWrapperFunction === undefined) {
 						pagesFileContents += outdent`
-							export default () => (${getComponentJsxString(layoutPaths)});
+							export default (props) => (${getComponentJsxString(layoutPaths)});
 						`
 					} else {
 						pagesFileContents += outdent`
-							export default ${componentWrapperFunction.name}(() => (
+							export default ${componentWrapperFunction.name}((props) => (
 								${getComponentJsxString(layoutPaths)}
 							));
 						`
