@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+
 /**
 	This file has to be CommonJS because importing it from Webpack doesn't work if it's ESM.
 */
@@ -183,7 +186,10 @@ export async function generatePagesFromRoutes({
 							(node: any) => node.type === 'ExportDefaultDeclaration'
 						)
 
-						if (exportDefaultDeclaration !== undefined || variableName === undefined) {
+						if (
+							exportDefaultDeclaration !== undefined ||
+							variableName === undefined
+						) {
 							// Assume default export
 							await writePagesFile(outdent`
 								import Route from '${routesDir}/${trimExtension(routeFileRelativePath)}';

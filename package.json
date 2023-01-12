@@ -10,17 +10,17 @@
 		"build": "ts-node ./scripts/build.mts"
 	},
 	"devDependencies": {
-		"@types/node": "^18.11.10",
-		"lionconfig": "^2.1.4",
-		"typescript": "^4.9.3",
-		"vitest": "^0.25.4"
+		"@types/node": "^18.11.18",
+		"lionconfig": "^2.3.1",
+		"typescript": "^4.9.4",
+		"vitest": "^0.27.1"
 	},
 	"dependencies": {
 		"acorn": "^8.8.1",
-		"chalk": "^5.1.2",
+		"chalk": "^5.2.0",
 		"change-case": "^4.1.2",
 		"chokidar": "^3.5.3",
-		"esbuild": "^0.15.18",
+		"esbuild": "^0.16.17",
 		"outdent": "^0.8.0",
 		"p-debounce": "^4.0.0",
 		"readdirp": "^3.6.0",
