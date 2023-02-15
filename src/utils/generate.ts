@@ -284,8 +284,8 @@ export async function generatePagesFromRoutes({
 											`await ${getLayoutGetServerSidePropsExport(
 												layoutPath
 											)}?.(context) ?? { props: {} }`
-									).join(',\n\t\t')
-								},
+									).join(',\n\t\t') + ','
+								}
 								await pageGetServerSideProps?.(context) ?? { props: {} }
 							)
 						}
