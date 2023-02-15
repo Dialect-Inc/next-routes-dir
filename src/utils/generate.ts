@@ -244,7 +244,7 @@ export async function generatePagesFromRoutes({
 							)
 							const layoutName = getLayoutName(remainingLayoutPaths[0])
 							return outdent`
-								<${layoutName}>${getComponentJsxString(
+								<${layoutName} {...props}>${getComponentJsxString(
 								remainingLayoutPaths.slice(1)
 							)}</${layoutName}>
 							`
@@ -285,7 +285,7 @@ export async function generatePagesFromRoutes({
 											`${getLayoutGetServerSidePropsExport(
 												layoutPath
 											)}?.(context) ?? { props: {} }`
-									).join('\n\t\t')
+									).join(',\n\t\t')
 								}
 							)
 						}
