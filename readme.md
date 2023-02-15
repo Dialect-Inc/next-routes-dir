@@ -8,7 +8,7 @@
 
 Install `next-routes-dir` from npm:
 
-```
+```sh
 npm install next-routes-dir
 ```
 
@@ -91,6 +91,8 @@ export default __definePage(() => (
   <div>...</div>
 ))
 ```
+
+Unlike the `pages/` directory, `next-routes-dir` also supports `getServerSideProps` from layout files! It does this by merging the results of the `getServerSideProps` in the layout file and the `getServerSideProps` in the route file.
 
 ## Caveats
 

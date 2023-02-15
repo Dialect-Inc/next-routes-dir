@@ -8,13 +8,26 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import * as acorn from 'acorn'
-import { pascalCase } from 'change-case'
+import { pascalCase, camelCase } from 'change-case'
 import * as esbuild from 'esbuild'
 import { outdent } from 'outdent'
+import pMemoize from 'p-memoize'
 import readdirp from 'readdirp'
 import invariant from 'tiny-invariant'
 
 import { type GenerateOptions } from '~/types/options.js'
+
+const getFileAst = pMemoize(async (filePath: string): Promise<any> => {
+	const fileContents = await fs.promises.readFile(filePath)
+	const transpiledFile = await esbuild.transform(fileContents, {
+		keepNames: true,
+		loader: 'tsx',
+	})
+	return acorn.parse(transpiledFile.code, {
+		ecmaVersion: 2020,
+		sourceType: 'module',
+	})
+})
 
 /**
 	Generates a `/pages` directory based on the `/routes` directory (a manual alternative to
@@ -146,23 +159,8 @@ export async function generatePagesFromRoutes({
 		[...routeFileToPagesFile.entries()].map(
 			async ([routeFileRelativePath, pagesFileRelativePath]) => {
 				const routeFileFullPath = path.join(routesDir, routeFileRelativePath)
-				const routeFileContents = await fs.promises.readFile(
-					path.join(routesDir, routeFileRelativePath),
-					'utf8'
-				)
+				const routeFileAst = await getFileAst(routeFileFullPath)
 				try {
-					const transpiledRouteFile = await esbuild.transform(
-						routeFileContents,
-						{
-							keepNames: true,
-							loader: 'tsx',
-						}
-					)
-					const routeFileAst = acorn.parse(transpiledRouteFile.code, {
-						ecmaVersion: 2020,
-						sourceType: 'module',
-					}) as any
-
 					if (routeFileRelativePath.startsWith('api/')) {
 						const writePagesFile = async (contents: string) => {
 							const pagesFileFullPath = path.join(
@@ -217,12 +215,18 @@ export async function generatePagesFromRoutes({
 
 					const getLayoutName = (layoutPath: string) =>
 						pascalCase(layoutPath.replaceAll(/\W/g, '')) + 'Layout'
+					const getLayoutGetServerSidePropsExport = (layoutPath: string) =>
+						`${camelCase(getLayoutName(layoutPath))}GetServerSideProps`
 
 					const layoutImports = layoutPaths
 						.map(
 							(layoutPath) =>
 								outdent`
-									import ${getLayoutName(layoutPath)} from '${routesDir}/${layoutPath}/layout';
+									import ${getLayoutName(
+									layoutPath
+								)}, { getServerSideProps as ${getLayoutGetServerSidePropsExport(
+									layoutPath
+								)} } from '${routesDir}/${layoutPath}/layout';
 								`
 						)
 						.join('\n')
@@ -246,21 +250,13 @@ export async function generatePagesFromRoutes({
 						}
 					}
 
-					// Check if the route file exports a `getServerSideProps` function
-					const exportNamedDeclaration = routeFileAst.body.find(
-						(node: any) => node.type === 'ExportNamedDeclaration'
-					)
-
-					const getServerSidePropsExportNamedDeclaration =
-						exportNamedDeclaration?.declaration?.declarations?.find(
-							(declaration: any) =>
-								declaration.id?.name === 'getServerSideProps'
-						)
-
 					let pagesFileContents = outdent({ trimTrailingNewline: false })`
 						import React from 'react';
+						import { deepmerge } from 'next-routes-dir/deepmerge';
 						${layoutImports}
-						import RouteComponent from '${trimExtension(routeFileFullPath)}';
+						import RouteComponent, { getServerSideProps as pageGetServerSideProps } from '${trimExtension(
+						routeFileFullPath
+					)}';
 					`
 
 					if (componentWrapperFunction !== undefined) {
@@ -269,11 +265,30 @@ export async function generatePagesFromRoutes({
 						`
 					}
 
-					if (getServerSidePropsExportNamedDeclaration !== undefined) {
-						pagesFileContents += outdent({ trimTrailingNewline: false })`
-							export { getServerSideProps } from '${trimExtension(routeFileFullPath)}';
-						`
-					}
+					const condition = [
+						'pageGetServerSideProps === undefined',
+						...layoutPaths
+							.map(
+								(layoutPath) =>
+									`${getLayoutGetServerSidePropsExport(layoutPath)} === undefined`
+							)
+					].join(' && ')
+
+					pagesFileContents += outdent`
+						export const getServerSideProps = ${condition} ? undefined : (context) => {
+							return deepmerge(
+								pageGetServerSideProps?.(context) ?? { props: {} },
+								${layoutPaths
+							.map(
+								(layoutPath) =>
+									`${getLayoutGetServerSidePropsExport(
+										layoutPath
+									)}?.(context) ?? { props: {} }`
+							)
+							.join('\n\t\t')}
+							)
+						};
+					`
 
 					if (componentWrapperFunction === undefined) {
 						pagesFileContents += outdent`
