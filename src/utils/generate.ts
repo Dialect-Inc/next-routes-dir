@@ -276,13 +276,13 @@ export async function generatePagesFromRoutes({
 					].join(' && ')
 
 					const mergedGetServerSidePropsFunction = outdent`
-						(context) => {
+						async (context) => {
 							return deepmerge(
-								pageGetServerSideProps?.(context) ?? { props: {} },
+								await pageGetServerSideProps?.(context) ?? { props: {} },
 								${
 									layoutPaths.map(
 										(layoutPath) =>
-											`${getLayoutGetServerSidePropsExport(
+											`await ${getLayoutGetServerSidePropsExport(
 												layoutPath
 											)}?.(context) ?? { props: {} }`
 									).join(',\n\t\t')
@@ -292,11 +292,11 @@ export async function generatePagesFromRoutes({
 					`
 
 					if (getServerSidePropsWrapperFunction === undefined) {
-						pagesFileContents += outdent`
+						pagesFileContents += outdent({ trimTrailingNewline: false })`
 							export const getServerSideProps = ${condition} ? undefined : ${mergedGetServerSidePropsFunction};
 						`
 					} else {
-						pagesFileContents += outdent`
+						pagesFileContents += outdent({ trimTrailingNewline: false })`
 							export const getServerSideProps = ${condition} ? undefined : ${getServerSidePropsWrapperFunction.name}(${mergedGetServerSidePropsFunction});
 						`
 					}
