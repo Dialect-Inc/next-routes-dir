@@ -37,6 +37,7 @@ export async function generatePagesFromRoutes({
 	pagesDir: generatedPagesDir,
 	routesDir,
 	componentWrapperFunction,
+	getServerSidePropsWrapperFunction
 }: GenerateOptions) {
 	const trimExtension = (filePath: string) => filePath.replace(/\.[^/.]+$/, '')
 
@@ -274,21 +275,31 @@ export async function generatePagesFromRoutes({
 							)
 					].join(' && ')
 
-					pagesFileContents += outdent`
-						export const getServerSideProps = ${condition} ? undefined : (context) => {
+					const mergedGetServerSidePropsFunction = outdent`
+						(context) => {
 							return deepmerge(
 								pageGetServerSideProps?.(context) ?? { props: {} },
-								${layoutPaths
-							.map(
-								(layoutPath) =>
-									`${getLayoutGetServerSidePropsExport(
-										layoutPath
-									)}?.(context) ?? { props: {} }`
+								${
+									layoutPaths.map(
+										(layoutPath) =>
+											`${getLayoutGetServerSidePropsExport(
+												layoutPath
+											)}?.(context) ?? { props: {} }`
+									).join('\n\t\t')
+								}
 							)
-							.join('\n\t\t')}
-							)
-						};
+						}
 					`
+
+					if (getServerSidePropsWrapperFunction === undefined) {
+						pagesFileContents += outdent`
+							export const getServerSideProps = ${condition} ? undefined : ${mergedGetServerSidePropsFunction};
+						`
+					} else {
+						pagesFileContents += outdent`
+							export const getServerSideProps = ${condition} ? undefined : ${getServerSidePropsWrapperFunction.name}(${mergedGetServerSidePropsFunction});
+						`
+					}
 
 					if (componentWrapperFunction === undefined) {
 						pagesFileContents += outdent`
