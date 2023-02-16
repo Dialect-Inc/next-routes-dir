@@ -95,7 +95,7 @@ export class RouteFile {
 		// Preserve the path of `/pages/api` routes
 		if (this.relativeFilePathFromRoutesDir.startsWith('api/')) {
 			const pagesFileRelativePath = this.relativeFilePathFromRoutesDir
-			return pagesFileRelativePath
+			return path.join(this.routeGenerator.pagesDir, pagesFileRelativePath)
 		}
 
 		const targetPagesFilePathSegments = this.getTargetPagesFilePathSegments()
