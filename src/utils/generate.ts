@@ -29,6 +29,23 @@ const getFileAst = pMemoize(async (filePath: string): Promise<any> => {
 	})
 })
 
+const hasGetServerSidePropsExport = pMemoize(async (filePath: string) => {
+	const fileAst = await getFileAst(filePath)
+
+	// Check if the route file exports a `getServerSideProps` function
+	const exportNamedDeclaration = fileAst.body.find(
+		(node: any) => node.type === 'ExportNamedDeclaration'
+	)
+
+	const getServerSidePropsExportNamedDeclaration =
+		exportNamedDeclaration?.declaration?.declarations?.find(
+			(declaration: any) =>
+				declaration.id?.name === 'getServerSideProps'
+		)
+
+	return getServerSidePropsExportNamedDeclaration !== undefined
+})
+
 /**
 	Generates a `/pages` directory based on the `/routes` directory (a manual alternative to
 	the `/app` directory introduced in Next.js 13 that has some performance problems while in beta)
@@ -219,18 +236,24 @@ export async function generatePagesFromRoutes({
 					const getLayoutGetServerSidePropsExport = (layoutPath: string) =>
 						`${camelCase(getLayoutName(layoutPath))}GetServerSideProps`
 
-					const layoutImports = layoutPaths
-						.map(
-							(layoutPath) =>
-								outdent`
-									import ${getLayoutName(
-									layoutPath
-								)}, { getServerSideProps as ${getLayoutGetServerSidePropsExport(
-									layoutPath
-								)} } from '${routesDir}/${layoutPath}/layout';
+					let shouldFileExportGetServerSideProps = false
+
+					const layoutImports = (await Promise.all(layoutPaths.map(
+						async (layoutPath) => {
+							let layoutImport = outdent({ trimTrailingNewline: false })`
+									import ${getLayoutName(layoutPath)} from '${routesDir}/${layoutPath}/layout'
 								`
-						)
-						.join('\n')
+
+							if (await hasGetServerSidePropsExport(layoutPath)) {
+								shouldFileExportGetServerSideProps = true
+								layoutImport += outdent({ trimTrailingNewline: false })`
+										import { getServerSideProps as ${getLayoutGetServerSidePropsExport(layoutPath)} } from '${routesDir}/${layoutPath}/layout'
+									`
+							}
+
+							return layoutImport
+						}
+					))).join('\n')
 
 					const getComponentJsxString = (
 						remainingLayoutPaths: string[]
@@ -255,10 +278,17 @@ export async function generatePagesFromRoutes({
 						import React from 'react';
 						import { deepmerge } from 'next-routes-dir/deepmerge';
 						${layoutImports}
-						import RouteComponent, { getServerSideProps as pageGetServerSideProps } from '${trimExtension(
-						routeFileFullPath
-					)}';
+						import RouteComponent from '${trimExtension(routeFileFullPath)}';
 					`
+
+					if (await hasGetServerSidePropsExport(routeFileFullPath)) {
+						shouldFileExportGetServerSideProps = true
+						pagesFileContents += outdent({ trimTrailingNewline: false })`
+							import { getServerSideProps as pageGetServerSideProps } from '${trimExtension(
+							routeFileFullPath
+						)}'
+						`
+					}
 
 					if (componentWrapperFunction !== undefined) {
 						pagesFileContents += outdent({ trimTrailingNewline: false })`
@@ -266,48 +296,42 @@ export async function generatePagesFromRoutes({
 						`
 					}
 
-					const condition = [
-						'pageGetServerSideProps === undefined',
-						...layoutPaths
-							.map(
-								(layoutPath) =>
-									`${getLayoutGetServerSidePropsExport(layoutPath)} === undefined`
-							)
-					].join(' && ')
+					if (shouldFileExportGetServerSideProps) {
+						const layoutGetServerSidePropsCalls = layoutPaths.map(
+							(layoutPath) =>
+								`await ${getLayoutGetServerSidePropsExport(
+									layoutPath
+								)}?.(context) ?? { props: {} }`
+						).join(',\n\t\t')
 
-					const layoutGetServerSidePropsCalls = layoutPaths.map(
-						(layoutPath) =>
-							`await ${getLayoutGetServerSidePropsExport(
-								layoutPath
-							)}?.(context) ?? { props: {} }`
-					).join(',\n\t\t')
+						let mergedGetServerSidePropsFunction: string
+						if (layoutPaths.length > 0) {
+							mergedGetServerSidePropsFunction = outdent`
+								async (context) => {
+									return deepmerge(
+										${layoutGetServerSidePropsCalls},
+										await pageGetServerSideProps?.(context) ?? { props: {} }
+									)
+								}
+							`
+						} else {
+							mergedGetServerSidePropsFunction = outdent`
+								async (context) => {
+									return pageGetServerSideProps?.(context) ?? { props: {} }
+								}
+							`
+						}
 
-					let mergedGetServerSidePropsFunction: string
-					if (layoutPaths.length > 0) {
-						mergedGetServerSidePropsFunction = outdent`
-							async (context) => {
-								return deepmerge(
-									${layoutGetServerSidePropsCalls},
-									await pageGetServerSideProps?.(context) ?? { props: {} }
-								)
-							}
-					`
-					} else {
-						mergedGetServerSidePropsFunction = outdent`
-							async (context) => {
-								return pageGetServerSideProps?.(context) ?? { props: {} }
-							}
-						`
-					}
-
-					if (getServerSidePropsWrapperFunction === undefined) {
-						pagesFileContents += outdent({ trimTrailingNewline: false })`
-							export const getServerSideProps = ${condition} ? (() => ({ props: {} })) : ${mergedGetServerSidePropsFunction};
-						`
-					} else {
-						pagesFileContents += outdent({ trimTrailingNewline: false })`
-							export const getServerSideProps = ${condition} ? (() => ({ props: {} })) : ${getServerSidePropsWrapperFunction.name}(${mergedGetServerSidePropsFunction});
-						`
+						if (getServerSidePropsWrapperFunction === undefined) {
+							pagesFileContents += outdent({ trimTrailingNewline: false })`
+								export const getServerSideProps = ${mergedGetServerSidePropsFunction};
+							`
+						} else {
+							pagesFileContents += outdent({ trimTrailingNewline: false })`
+								import { ${getServerSidePropsWrapperFunction.name} } from '${getServerSidePropsWrapperFunction.path}';
+								export const getServerSideProps = ${getServerSidePropsWrapperFunction.name}(${mergedGetServerSidePropsFunction});
+							`
+						}
 					}
 
 					if (componentWrapperFunction === undefined) {
