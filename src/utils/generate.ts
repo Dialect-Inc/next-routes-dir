@@ -59,6 +59,15 @@ export class RouteFile {
 		return getServerSidePropsExportNamedDeclaration !== undefined
 	}
 
+	async hasDefaultExport() {
+		const fileAst = await this.getAst()
+
+		// Check if the route file exports a `getServerSideProps` function
+		return fileAst.body.some(
+			(node: any) => node.type === 'ExportDefaultDeclaration'
+		)
+	}
+
 	getRouteGroups() {
 		const routeFilePathSegments = this.relativeFilePathFromRoutesDir.split(path.sep)
 
@@ -191,39 +200,27 @@ export class RouteFile {
 				}
 			}))
 
-			const pagesFileImportLines: string[] = [
-				"import React from 'react'",
-				`import RouteComponent from '${trimExtension(this.filePath)}'`
-			]
+			const pagesFileImportLines: string[] = []
+
+			const hasPageComponent = await this.hasDefaultExport()
+			if (hasPageComponent) {
+				pagesFileImportLines.push("import React from 'react'")
+				pagesFileImportLines.push(`import RouteComponent from '${trimExtension(this.filePath)}'`)
+			}
 
 			const pagesFileTopLevelStatements: string[] = []
 
 			for (const layoutFilePath of layoutFilePaths) {
-				pagesFileImportLines.push(`import ${getLayoutName(layoutFilePath)} from '${trimExtension(layoutFilePath)}'`
-				)
+				if (hasPageComponent) {
+					pagesFileImportLines.push(`import ${getLayoutName(layoutFilePath)} from '${trimExtension(layoutFilePath)}'`
+					)
+				}
 
 				if (layoutFilePathsWithGetServerSideProps.has(layoutFilePath)) {
 					shouldFileExportGetServerSideProps = true
 					pagesFileImportLines.push(
 						`import { getServerSideProps as ${getLayoutGetServerSidePropsExport(layoutFilePath)} } from '${trimExtension(layoutFilePath)}'`
 					)
-				}
-			}
-
-			const getComponentJsxString = (
-				layoutFilePaths: string[]
-			): string => {
-				if (layoutFilePaths.length === 0) {
-					return `<RouteComponent {...props} />`
-				} else {
-					invariant(
-						layoutFilePaths[0],
-						'remainingLayoutPaths is not empty'
-					)
-					const layoutName = getLayoutName(layoutFilePaths[0])
-					return outdent`
-					<${layoutName} {...props}>${getComponentJsxString(layoutFilePaths.slice(1))}</${layoutName}>
-				`
 				}
 			}
 
@@ -240,28 +237,31 @@ export class RouteFile {
 			}
 
 			if (shouldFileExportGetServerSideProps) {
-				const layoutGetServerSidePropsCalls = [...layoutFilePathsWithGetServerSideProps].map(
+				const getServerSidePropsCalls = [...layoutFilePathsWithGetServerSideProps].map(
 					(layoutFilePath) =>
 						`await ${getLayoutGetServerSidePropsExport(
 							layoutFilePath
 						)}?.(context) ?? { props: {} }`
-				).join(',\n\t\t')
+				)
+
+				if (await this.hasGetServerSidePropsExport()) {
+					getServerSidePropsCalls.push('await pageGetServerSideProps?.(context) ?? { props: {} }')
+				}
 
 				let mergedGetServerSidePropsFunction: string
-				if (layoutFilePathsWithGetServerSideProps.size > 0) {
+				if (getServerSidePropsCalls.length === 1) {
+					mergedGetServerSidePropsFunction = outdent`
+						async (context) => {
+							return ${getServerSidePropsCalls[0]};
+						}
+					`
+				} else {
 					pagesFileImportLines.push("import { deepmerge } from 'next-ts-route/deepmerge'")
 					mergedGetServerSidePropsFunction = outdent`
 						async (context) => {
 							return deepmerge(
-								${layoutGetServerSidePropsCalls},
-								await pageGetServerSideProps?.(context) ?? { props: {} }
+								${getServerSidePropsCalls.join(',\n\t\t')}
 							)
-						}
-					`
-				} else {
-					mergedGetServerSidePropsFunction = outdent`
-						async (context) => {
-							return pageGetServerSideProps?.(context) ?? { props: {} }
 						}
 					`
 				}
@@ -275,10 +275,29 @@ export class RouteFile {
 				}
 			}
 
-			if (this.routeGenerator.componentWrapperFunction === undefined) {
-				pagesFileTopLevelStatements.push(`export default (props) => (${getComponentJsxString(layoutFilePaths)})`)
-			} else {
-				pagesFileTopLevelStatements.push(`export default ${this.routeGenerator.componentWrapperFunction.name}((props) => (${getComponentJsxString(layoutFilePaths)}))`)
+			if (hasPageComponent) {
+				const getComponentJsxString = (
+					layoutFilePaths: string[]
+				): string => {
+					if (layoutFilePaths.length === 0) {
+						return '<RouteComponent {...props} />'
+					} else {
+						invariant(
+							layoutFilePaths[0],
+							'remainingLayoutPaths is not empty'
+						)
+						const layoutName = getLayoutName(layoutFilePaths[0])
+						return outdent`
+							<${layoutName} {...props}>${getComponentJsxString(layoutFilePaths.slice(1))}</${layoutName}>
+						`
+					}
+				}
+
+				if (this.routeGenerator.componentWrapperFunction === undefined) {
+					pagesFileTopLevelStatements.push(`export default (props) => (${getComponentJsxString(layoutFilePaths)})`)
+				} else {
+					pagesFileTopLevelStatements.push(`export default ${this.routeGenerator.componentWrapperFunction.name}((props) => (${getComponentJsxString(layoutFilePaths)}))`)
+				}
 			}
 
 			const pagesFileContents = outdent`
