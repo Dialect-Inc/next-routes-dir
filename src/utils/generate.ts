@@ -93,7 +93,7 @@ export class RouteFile {
 
 		// If the path segments are empty, it indicates that the file is the home page `/`
 		if (targetPagesFilePathSegments.length === 0) {
-			return 'index.tsx'
+			return path.join(this.routeGenerator.pagesDir, 'index.tsx')
 		} else {
 			targetPagesFilePathSegments[targetPagesFilePathSegments.length - 1] +=
 				'.tsx'
@@ -164,96 +164,100 @@ export class RouteFile {
 
 			const routeGroups = this.getRouteGroups()
 
-			const layoutPaths = routeGroups.filter(
-				(routeGroupPath) =>
-					fs.existsSync(path.join(routesDir, routeGroupPath, 'layout.tsx')) ||
-					fs.existsSync(path.join(routesDir, routeGroupPath, 'layout.jsx')) ||
-					fs.existsSync(path.join(routesDir, routeGroupPath, 'layout.ts')) ||
-					fs.existsSync(path.join(routesDir, routeGroupPath, 'layout.js'))
-			)
+			const layoutFilePaths = routeGroups.map(
+				(routeGroupPath) => {
+					for (const extension of ['tsx', 'jsx', 'ts', 'js']) {
+						if (fs.existsSync(path.join(routesDir, routeGroupPath, `layout.${extension}`))) {
+							return path.join(routesDir, routeGroupPath, `layout.${extension}`)
+						}
+					}
 
-			const getLayoutName = (layoutPath: string) =>
-				pascalCase(layoutPath.replaceAll(/\W/g, '')) + 'Layout'
-			const getLayoutGetServerSidePropsExport = (layoutPath: string) =>
-				`${camelCase(getLayoutName(layoutPath))}GetServerSideProps`
+					return false
+				}
+			).filter(layoutFilePath => layoutFilePath !== false) as string[]
+
+			const getLayoutName = (layoutFilePath: string) =>
+				pascalCase(path.basename(path.dirname(layoutFilePath)).replaceAll(/\W/g, '')) + 'Layout'
+			const getLayoutGetServerSidePropsExport = (layoutFilePath: string) =>
+				`${camelCase(getLayoutName(layoutFilePath))}GetServerSideProps`
 
 			let shouldFileExportGetServerSideProps = false
 
-			const layoutImports = (await Promise.all(layoutPaths.map(
-				async (layoutPath) => {
-					let layoutImport = outdent({ trimTrailingNewline: false })`
-						import ${getLayoutName(layoutPath)} from '${routesDir}/${layoutPath}/layout'
-					`
-					const layoutRouteFile = new RouteFile({ filePath: layoutPath, routeGenerator: this.routeGenerator })
-					if (await layoutRouteFile.hasGetServerSidePropsExport()) {
-						shouldFileExportGetServerSideProps = true
-						layoutImport += outdent({ trimTrailingNewline: false })`
-							import { getServerSideProps as ${getLayoutGetServerSidePropsExport(layoutPath)} } from '${routesDir}/${layoutPath}/layout'
-						`
-					}
-
-					return layoutImport
+			const layoutFilePathsWithGetServerSideProps = new Set<string>()
+			await Promise.all(layoutFilePaths.map(async (layoutFilePath) => {
+				const layoutRouteFile = new RouteFile({ filePath: layoutFilePath, routeGenerator: this.routeGenerator })
+				if (await layoutRouteFile.hasGetServerSidePropsExport()) {
+					layoutFilePathsWithGetServerSideProps.add(layoutFilePath)
 				}
-			))).join('\n')
+			}))
+
+			const pagesFileImportLines: string[] = [
+				"import React from 'react'",
+				`import RouteComponent from '${trimExtension(this.filePath)}'`
+			]
+
+			const pagesFileTopLevelStatements: string[] = []
+
+			for (const layoutFilePath of layoutFilePaths) {
+				pagesFileImportLines.push(`import ${getLayoutName(layoutFilePath)} from '${trimExtension(layoutFilePath)}'`
+				)
+
+				if (layoutFilePathsWithGetServerSideProps.has(layoutFilePath)) {
+					shouldFileExportGetServerSideProps = true
+					pagesFileImportLines.push(
+						`import { getServerSideProps as ${getLayoutGetServerSidePropsExport(layoutFilePath)} } from '${trimExtension(layoutFilePath)}'`
+					)
+				}
+			}
 
 			const getComponentJsxString = (
-				remainingLayoutPaths: string[]
+				layoutFilePaths: string[]
 			): string => {
-				if (remainingLayoutPaths.length === 0) {
+				if (layoutFilePaths.length === 0) {
 					return `<RouteComponent {...props} />`
 				} else {
 					invariant(
-						remainingLayoutPaths[0],
+						layoutFilePaths[0],
 						'remainingLayoutPaths is not empty'
 					)
-					const layoutName = getLayoutName(remainingLayoutPaths[0])
+					const layoutName = getLayoutName(layoutFilePaths[0])
 					return outdent`
-					<${layoutName} {...props}>${getComponentJsxString(remainingLayoutPaths.slice(1))}</${layoutName}>
+					<${layoutName} {...props}>${getComponentJsxString(layoutFilePaths.slice(1))}</${layoutName}>
 				`
 				}
 			}
 
-			let pagesFileContents = outdent({ trimTrailingNewline: false })`
-				import React from 'react';
-				import { deepmerge } from 'next-routes-dir/deepmerge';
-				${layoutImports}
-				import RouteComponent from '${trimExtension(this.filePath)}';
-			`
-
 			if (await this.hasGetServerSidePropsExport()) {
 				shouldFileExportGetServerSideProps = true
-				pagesFileContents += outdent({ trimTrailingNewline: false })`
-					import { getServerSideProps as pageGetServerSideProps } from '${trimExtension(
-						this.filePath
-					)}'
-				`
+				pagesFileImportLines.push(
+					`import { getServerSideProps as pageGetServerSideProps } from '${trimExtension(this.filePath)}'`
+				)
 			}
 
 			if (this.routeGenerator.componentWrapperFunction !== undefined) {
 				const { name, path } = this.routeGenerator.componentWrapperFunction
-				pagesFileContents += outdent({ trimTrailingNewline: false })`
-					import { ${name} } from '${path}';
-				`
+				pagesFileImportLines.push(`import { ${name} } from '${path}'`)
 			}
 
 			if (shouldFileExportGetServerSideProps) {
-				const layoutGetServerSidePropsCalls = layoutPaths.map(
-					(layoutPath) =>
+				const layoutGetServerSidePropsCalls = [...layoutFilePathsWithGetServerSideProps].map(
+					(layoutFilePath) =>
 						`await ${getLayoutGetServerSidePropsExport(
-							layoutPath
+							layoutFilePath
 						)}?.(context) ?? { props: {} }`
 				).join(',\n\t\t')
 
 				let mergedGetServerSidePropsFunction: string
-				if (layoutPaths.length > 0) {
+				if (layoutFilePathsWithGetServerSideProps.size > 0) {
+					pagesFileImportLines.push("import { deepmerge } from 'next-ts-route/deepmerge'")
 					mergedGetServerSidePropsFunction = outdent`
-					async (context) => {
-						return deepmerge(
-							${layoutGetServerSidePropsCalls},
-							await pageGetServerSideProps?.(context) ?? { props: {} }
-						)
-					}
-				`
+						async (context) => {
+							return deepmerge(
+								${layoutGetServerSidePropsCalls},
+								await pageGetServerSideProps?.(context) ?? { props: {} }
+							)
+						}
+					`
 				} else {
 					mergedGetServerSidePropsFunction = outdent`
 						async (context) => {
@@ -263,29 +267,25 @@ export class RouteFile {
 				}
 
 				if (this.routeGenerator.getServerSidePropsWrapperFunction === undefined) {
-					pagesFileContents += outdent({ trimTrailingNewline: false })`
-						export const getServerSideProps = ${mergedGetServerSidePropsFunction};
-					`
+					pagesFileTopLevelStatements.push(`export const getServerSideProps = ${mergedGetServerSidePropsFunction}`)
 				} else {
 					const { name, path } = this.routeGenerator.getServerSidePropsWrapperFunction
-					pagesFileContents += outdent({ trimTrailingNewline: false })`
-					import { ${name} } from '${path}';
-					export const getServerSideProps = ${name}(${mergedGetServerSidePropsFunction});
-				`
+					pagesFileImportLines.push(`import { ${name} } from '${path}'`)
+					pagesFileTopLevelStatements.push(`export const getServerSideProps = ${name}(${mergedGetServerSidePropsFunction})`)
 				}
 			}
 
 			if (this.routeGenerator.componentWrapperFunction === undefined) {
-				pagesFileContents += outdent`
-					export default (props) => (${getComponentJsxString(layoutPaths)});
-				`
+				pagesFileTopLevelStatements.push(`export default (props) => (${getComponentJsxString(layoutFilePaths)})`)
 			} else {
-				pagesFileContents += outdent`
-					export default ${this.routeGenerator.componentWrapperFunction.name}((props) => (
-						${getComponentJsxString(layoutPaths)}
-					));
-				`
+				pagesFileTopLevelStatements.push(`export default ${this.routeGenerator.componentWrapperFunction.name}((props) => (${getComponentJsxString(layoutFilePaths)}))`)
 			}
+
+			const pagesFileContents = outdent`
+				${pagesFileImportLines.join(';\n')}
+
+				${pagesFileTopLevelStatements.join(';\n')}
+			`
 
 			this.writeTargetPagesFile(pagesFileContents)
 		} catch (error: unknown) {
