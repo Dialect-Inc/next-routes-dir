@@ -184,12 +184,12 @@ export class RouteFile {
 					let layoutImport = outdent({ trimTrailingNewline: false })`
 						import ${getLayoutName(layoutPath)} from '${routesDir}/${layoutPath}/layout'
 					`
-
-					if (await this.hasGetServerSidePropsExport()) {
+					const layoutRouteFile = new RouteFile({ filePath: layoutPath, routeGenerator: this.routeGenerator })
+					if (await layoutRouteFile.hasGetServerSidePropsExport()) {
 						shouldFileExportGetServerSideProps = true
 						layoutImport += outdent({ trimTrailingNewline: false })`
-						import { getServerSideProps as ${getLayoutGetServerSidePropsExport(layoutPath)} } from '${routesDir}/${layoutPath}/layout'
-					`
+							import { getServerSideProps as ${getLayoutGetServerSidePropsExport(layoutPath)} } from '${routesDir}/${layoutPath}/layout'
+						`
 					}
 
 					return layoutImport
@@ -224,8 +224,8 @@ export class RouteFile {
 				shouldFileExportGetServerSideProps = true
 				pagesFileContents += outdent({ trimTrailingNewline: false })`
 					import { getServerSideProps as pageGetServerSideProps } from '${trimExtension(
-					this.filePath
-				)}'
+						this.filePath
+					)}'
 				`
 			}
 
