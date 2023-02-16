@@ -111,13 +111,12 @@ export class RouteFile {
 	}
 
 	async generateTargetPagesFile() {
-		const fileName = path.basename(this.filePath)
-
 		// `_app.tsx` and `_document.tsx` need to be copied over
-		if (['_app', '_document'].includes(path.parse(fileName).name)) {
+		if (['_app', '_document'].includes(path.parse(this.filePath).name)) {
+			await fs.promises.mkdir(this.routeGenerator.pagesDir, { recursive: true })
 			await fs.promises.cp(
-				path.join(this.routeGenerator.pagesDir, fileName),
-				path.join(this.routeGenerator.routesDir, fileName)
+				path.join(this.filePath),
+				path.join(this.routeGenerator.pagesDir, this.relativeFilePathFromRoutesDir),
 			)
 			return
 		}
@@ -367,21 +366,7 @@ export class RouteGenerator {
 			)
 		}
 
-		// Generate the `pages/` files
+		// Generate the `pages/` files for each `routes/` file
 		await Promise.all(routeFiles.map(async routeFile => routeFile.generateTargetPagesFile()))
-
-		// The `_app.tsx` and `_document.tsx` files can't be imported and need to be copied because they are special files in Next.js and can do stuff like importing global CSS
-		for (const fileBasename of ['_document', '_app']) {
-			for (const extension of ['tsx', 'jsx', 'ts', 'js']) {
-				const fileName = `${fileBasename}.${extension}`
-				if (fs.existsSync(path.join(this.routesDir, fileName))) {
-					await fs.promises.cp(
-						path.join(this.pagesDir, fileName),
-						path.join(this.routesDir, fileName)
-					)
-					break
-				}
-			}
-		}
 	}
 }
