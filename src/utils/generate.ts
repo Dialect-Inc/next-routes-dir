@@ -256,7 +256,7 @@ export class RouteFile {
 						}
 					`
 				} else {
-					pagesFileImportLines.push("import { deepmerge } from 'next-ts-route/deepmerge'")
+					pagesFileImportLines.push("import { deepmerge } from 'next-routes-dir/deepmerge'")
 					mergedGetServerSidePropsFunction = outdent`
 						async (context) => {
 							return deepmerge(
