@@ -5,11 +5,12 @@ import chokidar from 'chokidar'
 import pDebounce from 'p-debounce'
 
 import { type GenerateOptions } from '~/types/options.js'
-import { generatePagesFromRoutes } from '~/utils/generate.js'
+import { RouteFile, RouteGenerator } from '~/utils/generate.js'
 
 export async function setupRoutesDirectoryWatcher(options: GenerateOptions) {
+	const routeGenerator = new RouteGenerator(options)
 	const debouncedGeneratePagesFromRoutes = pDebounce(
-		async () => generatePagesFromRoutes(options),
+		async () => routeGenerator.generatePagesDirectory(),
 		200
 	)
 
@@ -21,22 +22,19 @@ export async function setupRoutesDirectoryWatcher(options: GenerateOptions) {
 				chalk.dim('Change in `routes/` detected, `/pages` regenerated\n')
 			)
 		})
+		// When a specific file is changed
 		.on('change', async (filePath) => {
-			if (
-				filePath === path.join(options.routesDir, '_app.tsx') ||
-				filePath === path.join(options.routesDir, '_document.tsx')
-			) {
-				process.stderr.write(
-					chalk.dim(
-						`Changes in ${path.basename(
-							filePath
-						)} detected, regenerating \`/pages\`...\n`
-					)
-				)
+			// If the file path is a layout file, it might affect other files, so we regenerate the whole `pages/` directory (but this could be optimized)
+			if (path.parse(filePath).name === 'layout') {
 				await debouncedGeneratePagesFromRoutes()
+			}
+			// Otherwise, only update the pages/ file for the specific file which was changed
+			else {
+				const routeFile = new RouteFile({ filePath, routeGenerator })
+				await routeFile.generateTargetPagesFile()
 			}
 		})
 
 	process.stderr.write('Generated `pages/` from `routes/`\n')
-	await generatePagesFromRoutes(options)
+	await routeGenerator.generatePagesDirectory()
 }
