@@ -130,11 +130,6 @@ export class RouteFile {
 			return
 		}
 
-		// Otherwise, only `page.tsx` files can be generated
-		if (trimExtension(path.basename(this.filePath)) !== 'page') {
-			return
-		}
-
 		const ast = await this.getAst()
 		const { routesDir } = this.routeGenerator
 
@@ -168,6 +163,11 @@ export class RouteFile {
 					import { ${variableName} } from '${routesDir}/${trimExtension(this.relativeFilePathFromRoutesDir)}';
 					export default ${variableName};
 				`)
+				return
+
+			}
+			// If the page is not in api/, only `page.tsx` files can be generated
+			else if (trimExtension(path.basename(this.filePath)) !== 'page') {
 				return
 			}
 
