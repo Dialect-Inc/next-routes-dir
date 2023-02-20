@@ -22,6 +22,10 @@ export async function setupRoutesDirectoryWatcher(options: GenerateOptions) {
 				chalk.dim('Change in `routes/` detected, `/pages` regenerated\n')
 			)
 		})
+		.on('delete', async (filePath) => {
+			const routeFile = new RouteFile({ filePath, routeGenerator })
+			await routeFile.deleteTargetPagesFile()
+		})
 		// When a specific file is changed
 		.on('change', async (filePath) => {
 			// If the file path is a layout file, it might affect other files, so we regenerate the whole `pages/` directory (but this could be optimized)

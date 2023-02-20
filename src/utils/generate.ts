@@ -119,6 +119,13 @@ export class RouteFile {
 		await fs.promises.writeFile(pagesFilePath, contents)
 	}
 
+	async deleteTargetPagesFile() {
+		const pagesFilePath = this.getTargetPagesFilePath()
+		await fs.promises.rm(path.dirname(pagesFilePath), {
+			force: true
+		})
+	}
+
 	async generateTargetPagesFile() {
 		// `_app.tsx` and `_document.tsx` need to be copied over
 		if (['_app', '_document'].includes(path.parse(this.filePath).name)) {
