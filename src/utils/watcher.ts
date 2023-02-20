@@ -22,9 +22,11 @@ export async function setupRoutesDirectoryWatcher(options: GenerateOptions) {
 				chalk.dim('Change in `routes/` detected, `/pages` regenerated\n')
 			)
 		})
-		.on('delete', async (filePath) => {
-			const routeFile = new RouteFile({ filePath, routeGenerator })
-			await routeFile.deleteTargetPagesFile()
+		.on('delete', async () => {
+			await debouncedGeneratePagesFromRoutes()
+			process.stderr.write(
+				chalk.dim('Change in `routes/` detected, `/pages` regenerated\n')
+			)
 		})
 		// When a specific file is changed
 		.on('change', async (filePath) => {
