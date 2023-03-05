@@ -50,8 +50,12 @@ export class RouteFile {
 		const getServerSidePropsExportNamedDeclaration =
 			exportNamedDeclaration?.declaration
 
+		if (getServerSidePropsExportNamedDeclaration === undefined) {
+			return false
+		}
+
 		const hasVariableDeclaration =
-			getServerSidePropsExportNamedDeclaration?.declarations?.find(
+			getServerSidePropsExportNamedDeclaration.declarations?.some(
 				(declaration: any) => declaration.id?.name === 'getServerSideProps'
 			)
 
@@ -60,15 +64,14 @@ export class RouteFile {
 		}
 
 		const hasFunctionDeclaration =
-			getServerSidePropsExportNamedDeclaration?.id?.name ===
-			'getServerSideProps'
+			getServerSidePropsExportNamedDeclaration.id?.name === 'getServerSideProps'
 
 		if (hasFunctionDeclaration) {
 			return true
 		}
 
 		const hasExportSpecifier =
-			getServerSidePropsExportNamedDeclaration.specifiers?.find(
+			getServerSidePropsExportNamedDeclaration.specifiers?.some(
 				(specifier: any) => specifier.exported.name === 'getServerSideProps'
 			)
 
