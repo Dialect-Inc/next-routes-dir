@@ -1,1 +1,2 @@
-export const trimExtension = (filePath: string) => filePath.replace(/\.[^/.]+$/, '')
+export const trimExtension = (filePath: string) =>
+	filePath.replace(/\.[^/.]+$/, '')

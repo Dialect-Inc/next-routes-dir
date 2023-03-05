@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
 	This file has to be CommonJS because importing it from Webpack doesn't work if it's ESM.
 */
@@ -8,7 +5,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import * as acorn from 'acorn'
-import { pascalCase, camelCase } from 'change-case'
+import { camelCase, pascalCase } from 'change-case'
 import * as esbuild from 'esbuild'
 import { outdent } from 'outdent'
 import readdirp from 'readdirp'
@@ -21,7 +18,7 @@ export class RouteFile {
 	filePath: string
 	routeGenerator: RouteGenerator
 
-	constructor(options: { filePath: string, routeGenerator: RouteGenerator }) {
+	constructor(options: { filePath: string; routeGenerator: RouteGenerator }) {
 		this.filePath = options.filePath
 		this.routeGenerator = options.routeGenerator
 	}
@@ -51,12 +48,35 @@ export class RouteFile {
 		)
 
 		const getServerSidePropsExportNamedDeclaration =
-			exportNamedDeclaration?.declaration?.declarations?.find(
-				(declaration: any) =>
-					declaration.id?.name === 'getServerSideProps'
+			exportNamedDeclaration?.declaration
+
+		const hasVariableDeclaration =
+			getServerSidePropsExportNamedDeclaration?.declarations?.find(
+				(declaration: any) => declaration.id?.name === 'getServerSideProps'
 			)
 
-		return getServerSidePropsExportNamedDeclaration !== undefined
+		if (hasVariableDeclaration) {
+			return true
+		}
+
+		const hasFunctionDeclaration =
+			getServerSidePropsExportNamedDeclaration?.id?.name ===
+			'getServerSideProps'
+
+		if (hasFunctionDeclaration) {
+			return true
+		}
+
+		const hasExportSpecifier =
+			getServerSidePropsExportNamedDeclaration.specifiers?.find(
+				(specifier: any) => specifier.exported.name === 'getServerSideProps'
+			)
+
+		if (hasExportSpecifier) {
+			return true
+		}
+
+		return false
 	}
 
 	async hasDefaultExport() {
@@ -69,7 +89,9 @@ export class RouteFile {
 	}
 
 	getRouteGroups() {
-		const routeFilePathSegments = this.relativeFilePathFromRoutesDir.split(path.sep)
+		const routeFilePathSegments = this.relativeFilePathFromRoutesDir.split(
+			path.sep
+		)
 
 		// A map of file paths to their route groups, which are identified by the path to the route group folder (e.g. `blog/(comments)`)
 		const routeGroups: string[] = []
@@ -122,7 +144,7 @@ export class RouteFile {
 	async deleteTargetPagesFile() {
 		const pagesFilePath = this.getTargetPagesFilePath()
 		await fs.promises.rm(path.dirname(pagesFilePath), {
-			force: true
+			force: true,
 		})
 	}
 
@@ -132,7 +154,10 @@ export class RouteFile {
 			await fs.promises.mkdir(this.routeGenerator.pagesDir, { recursive: true })
 			await fs.promises.cp(
 				path.join(this.filePath),
-				path.join(this.routeGenerator.pagesDir, this.relativeFilePathFromRoutesDir),
+				path.join(
+					this.routeGenerator.pagesDir,
+					this.relativeFilePathFromRoutesDir
+				)
 			)
 			return
 		}
@@ -141,37 +166,22 @@ export class RouteFile {
 		const { routesDir } = this.routeGenerator
 
 		try {
-			// If the page is an api/ page, we just re-export either the default export of the route file or the first named export of the route file as the default export
+			// If the page is an api/ page, we just re-export either the default export of the route file
 			if (this.relativeFilePathFromRoutesDir.startsWith('api/')) {
-				const exportNamedDeclaration = ast.body.find(
-					(node: any) => node.type === 'ExportNamedDeclaration'
-				)
-
-				const variableName =
-					exportNamedDeclaration?.declaration?.declarations?.[0]?.id?.name
-
 				const exportDefaultDeclaration = ast.body.find(
 					(node: any) => node.type === 'ExportDefaultDeclaration'
 				)
 
-				if (
-					exportDefaultDeclaration !== undefined ||
-					variableName === undefined
-				) {
+				if (exportDefaultDeclaration !== undefined) {
 					// Assume default export
 					await this.writeTargetPagesFile(outdent`
-						import RouteHandler from '${routesDir}/${trimExtension(this.relativeFilePathFromRoutesDir)}';
+						import RouteHandler from '${routesDir}/${trimExtension(
+						this.relativeFilePathFromRoutesDir
+					)}';
 						export default RouteHandler;
 					`)
 					return
 				}
-
-				await this.writeTargetPagesFile(outdent`
-					import { ${variableName} } from '${routesDir}/${trimExtension(this.relativeFilePathFromRoutesDir)}';
-					export default ${variableName};
-				`)
-				return
-
 			}
 			// If the page is not in api/, only `page.tsx` files can be generated
 			else if (trimExtension(path.basename(this.filePath)) !== 'page') {
@@ -180,53 +190,71 @@ export class RouteFile {
 
 			const routeGroups = this.getRouteGroups()
 
-			const layoutFilePaths = routeGroups.map(
-				(routeGroupPath) => {
+			const layoutFilePaths = routeGroups
+				.map((routeGroupPath) => {
 					for (const extension of ['tsx', 'jsx', 'ts', 'js']) {
-						if (fs.existsSync(path.join(routesDir, routeGroupPath, `layout.${extension}`))) {
+						if (
+							fs.existsSync(
+								path.join(routesDir, routeGroupPath, `layout.${extension}`)
+							)
+						) {
 							return path.join(routesDir, routeGroupPath, `layout.${extension}`)
 						}
 					}
 
 					return false
-				}
-			).filter(layoutFilePath => layoutFilePath !== false) as string[]
+				})
+				.filter((layoutFilePath) => layoutFilePath !== false) as string[]
 
 			const getLayoutName = (layoutFilePath: string) =>
-				pascalCase(path.basename(path.dirname(layoutFilePath)).replaceAll(/\W/g, '')) + 'Layout'
+				pascalCase(
+					path.basename(path.dirname(layoutFilePath)).replaceAll(/\W/g, '')
+				) + 'Layout'
 			const getLayoutGetServerSidePropsExport = (layoutFilePath: string) =>
 				`${camelCase(getLayoutName(layoutFilePath))}GetServerSideProps`
 
 			let shouldFileExportGetServerSideProps = false
 
 			const layoutFilePathsWithGetServerSideProps = new Set<string>()
-			await Promise.all(layoutFilePaths.map(async (layoutFilePath) => {
-				const layoutRouteFile = new RouteFile({ filePath: layoutFilePath, routeGenerator: this.routeGenerator })
-				if (await layoutRouteFile.hasGetServerSidePropsExport()) {
-					layoutFilePathsWithGetServerSideProps.add(layoutFilePath)
-				}
-			}))
+			await Promise.all(
+				layoutFilePaths.map(async (layoutFilePath) => {
+					const layoutRouteFile = new RouteFile({
+						filePath: layoutFilePath,
+						routeGenerator: this.routeGenerator,
+					})
+					if (await layoutRouteFile.hasGetServerSidePropsExport()) {
+						layoutFilePathsWithGetServerSideProps.add(layoutFilePath)
+					}
+				})
+			)
 
 			const pagesFileImportLines: string[] = []
 
 			const hasPageComponent = await this.hasDefaultExport()
 			if (hasPageComponent) {
-				pagesFileImportLines.push("import React from 'react'")
-				pagesFileImportLines.push(`import RouteComponent from '${trimExtension(this.filePath)}'`)
+				pagesFileImportLines.push(
+					"import React from 'react'",
+					`import RouteComponent from '${trimExtension(this.filePath)}'`
+				)
 			}
 
 			const pagesFileTopLevelStatements: string[] = []
 
 			for (const layoutFilePath of layoutFilePaths) {
 				if (hasPageComponent) {
-					pagesFileImportLines.push(`import ${getLayoutName(layoutFilePath)} from '${trimExtension(layoutFilePath)}'`
+					pagesFileImportLines.push(
+						`import ${getLayoutName(layoutFilePath)} from '${trimExtension(
+							layoutFilePath
+						)}'`
 					)
 				}
 
 				if (layoutFilePathsWithGetServerSideProps.has(layoutFilePath)) {
 					shouldFileExportGetServerSideProps = true
 					pagesFileImportLines.push(
-						`import { getServerSideProps as ${getLayoutGetServerSidePropsExport(layoutFilePath)} } from '${trimExtension(layoutFilePath)}'`
+						`import { getServerSideProps as ${getLayoutGetServerSidePropsExport(
+							layoutFilePath
+						)} } from '${trimExtension(layoutFilePath)}'`
 					)
 				}
 			}
@@ -234,7 +262,9 @@ export class RouteFile {
 			if (await this.hasGetServerSidePropsExport()) {
 				shouldFileExportGetServerSideProps = true
 				pagesFileImportLines.push(
-					`import { getServerSideProps as pageGetServerSideProps } from '${trimExtension(this.filePath)}'`
+					`import { getServerSideProps as pageGetServerSideProps } from '${trimExtension(
+						this.filePath
+					)}'`
 				)
 			}
 
@@ -244,7 +274,9 @@ export class RouteFile {
 			}
 
 			if (shouldFileExportGetServerSideProps) {
-				const getServerSidePropsCalls = [...layoutFilePathsWithGetServerSideProps].map(
+				const getServerSidePropsCalls = [
+					...layoutFilePathsWithGetServerSideProps,
+				].map(
 					(layoutFilePath) =>
 						`await ${getLayoutGetServerSidePropsExport(
 							layoutFilePath
@@ -252,7 +284,9 @@ export class RouteFile {
 				)
 
 				if (await this.hasGetServerSidePropsExport()) {
-					getServerSidePropsCalls.push('await pageGetServerSideProps?.(context) ?? { props: {} }')
+					getServerSidePropsCalls.push(
+						'await pageGetServerSideProps?.(context) ?? { props: {} }'
+					)
 				}
 
 				let mergedGetServerSidePropsFunction: string
@@ -263,7 +297,9 @@ export class RouteFile {
 						}
 					`
 				} else {
-					pagesFileImportLines.push("import { deepmerge } from 'next-routes-dir/deepmerge'")
+					pagesFileImportLines.push(
+						"import { deepmerge } from 'next-routes-dir/deepmerge'"
+					)
 					mergedGetServerSidePropsFunction = outdent`
 						async (context) => {
 							return deepmerge(
@@ -273,37 +309,49 @@ export class RouteFile {
 					`
 				}
 
-				if (this.routeGenerator.getServerSidePropsWrapperFunction === undefined) {
-					pagesFileTopLevelStatements.push(`export const getServerSideProps = ${mergedGetServerSidePropsFunction}`)
+				if (
+					this.routeGenerator.getServerSidePropsWrapperFunction === undefined
+				) {
+					pagesFileTopLevelStatements.push(
+						`export const getServerSideProps = ${mergedGetServerSidePropsFunction}`
+					)
 				} else {
-					const { name, path } = this.routeGenerator.getServerSidePropsWrapperFunction
+					const { name, path } =
+						this.routeGenerator.getServerSidePropsWrapperFunction
 					pagesFileImportLines.push(`import { ${name} } from '${path}'`)
-					pagesFileTopLevelStatements.push(`export const getServerSideProps = ${name}(${mergedGetServerSidePropsFunction})`)
+					pagesFileTopLevelStatements.push(
+						`export const getServerSideProps = ${name}(${mergedGetServerSidePropsFunction})`
+					)
 				}
 			}
 
 			if (hasPageComponent) {
-				const getComponentJsxString = (
-					layoutFilePaths: string[]
-				): string => {
+				const getComponentJsxString = (layoutFilePaths: string[]): string => {
 					if (layoutFilePaths.length === 0) {
 						return '<RouteComponent {...props} />'
 					} else {
-						invariant(
-							layoutFilePaths[0],
-							'remainingLayoutPaths is not empty'
-						)
+						invariant(layoutFilePaths[0], 'remainingLayoutPaths is not empty')
 						const layoutName = getLayoutName(layoutFilePaths[0])
 						return outdent`
-							<${layoutName} {...props}>${getComponentJsxString(layoutFilePaths.slice(1))}</${layoutName}>
+							<${layoutName} {...props}>${getComponentJsxString(
+							layoutFilePaths.slice(1)
+						)}</${layoutName}>
 						`
 					}
 				}
 
 				if (this.routeGenerator.componentWrapperFunction === undefined) {
-					pagesFileTopLevelStatements.push(`export default (props) => (${getComponentJsxString(layoutFilePaths)})`)
+					pagesFileTopLevelStatements.push(
+						`export default (props) => (${getComponentJsxString(
+							layoutFilePaths
+						)})`
+					)
 				} else {
-					pagesFileTopLevelStatements.push(`export default ${this.routeGenerator.componentWrapperFunction.name}((props) => (${getComponentJsxString(layoutFilePaths)}))`)
+					pagesFileTopLevelStatements.push(
+						`export default ${
+							this.routeGenerator.componentWrapperFunction.name
+						}((props) => (${getComponentJsxString(layoutFilePaths)}))`
+					)
 				}
 			}
 
@@ -313,7 +361,7 @@ export class RouteFile {
 				${pagesFileTopLevelStatements.join(';\n')}
 			`
 
-			this.writeTargetPagesFile(pagesFileContents)
+			await this.writeTargetPagesFile(pagesFileContents)
 		} catch (error: unknown) {
 			console.error(
 				`Received error while creating a generated TypeScript file for file \`${this.relativeFilePathFromRoutesDir}\`:`,
@@ -323,7 +371,9 @@ export class RouteFile {
 	}
 
 	getTargetPagesFilePathSegments() {
-		const routeFilePathSegments = this.relativeFilePathFromRoutesDir.split(path.sep)
+		const routeFilePathSegments = this.relativeFilePathFromRoutesDir.split(
+			path.sep
+		)
 		const pagesFilePathSegments: string[] = []
 
 		for (const routeSegment of routeFilePathSegments.slice(0, -1)) {
@@ -346,7 +396,8 @@ export class RouteGenerator {
 		this.pagesDir = options.pagesDir
 		this.routesDir = options.routesDir
 		this.componentWrapperFunction = options.componentWrapperFunction
-		this.getServerSidePropsWrapperFunction = options.getServerSidePropsWrapperFunction
+		this.getServerSidePropsWrapperFunction =
+			options.getServerSidePropsWrapperFunction
 	}
 
 	/**
@@ -354,14 +405,22 @@ export class RouteGenerator {
 		the `/app` directory introduced in Next.js 13 that has some performance problems while in beta)
 	*/
 	async generatePagesDirectory() {
-		const routeFilePathsData = await readdirp.promise(this.routesDir, { type: 'files' })
+		const routeFilePathsData = await readdirp.promise(this.routesDir, {
+			type: 'files',
+		})
 
 		// Create a map of all the route pages
 		const routeFileToPagesFile = new Map<string, string>()
 		const routeFiles: RouteFile[] = []
 		for (const { fullPath: routeFilePath } of routeFilePathsData) {
-			const routeFile = new RouteFile({ filePath: routeFilePath, routeGenerator: this })
-			routeFileToPagesFile.set(routeFilePath, routeFile.getTargetPagesFilePath())
+			const routeFile = new RouteFile({
+				filePath: routeFilePath,
+				routeGenerator: this,
+			})
+			routeFileToPagesFile.set(
+				routeFilePath,
+				routeFile.getTargetPagesFilePath()
+			)
 			routeFiles.push(routeFile)
 		}
 
@@ -393,6 +452,8 @@ export class RouteGenerator {
 		}
 
 		// Generate the `pages/` files for each `routes/` file
-		await Promise.all(routeFiles.map(async routeFile => routeFile.generateTargetPagesFile()))
+		await Promise.all(
+			routeFiles.map(async (routeFile) => routeFile.generateTargetPagesFile())
+		)
 	}
 }
