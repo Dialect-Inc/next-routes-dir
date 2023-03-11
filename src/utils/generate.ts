@@ -151,7 +151,7 @@ export class RouteFile {
 		})
 	}
 
-	async generateTargetPagesFile() {
+	public async generateTargetPagesFile() {
 		try {
 			// `_app.tsx` and `_document.tsx` need to be copied over
 			if (['_app', '_document'].includes(path.parse(this.filePath).name)) {
