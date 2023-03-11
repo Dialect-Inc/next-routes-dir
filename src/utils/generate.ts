@@ -152,23 +152,22 @@ export class RouteFile {
 	}
 
 	async generateTargetPagesFile() {
-		// `_app.tsx` and `_document.tsx` need to be copied over
-		if (['_app', '_document'].includes(path.parse(this.filePath).name)) {
-			await fs.promises.mkdir(this.routeGenerator.pagesDir, { recursive: true })
-			await fs.promises.cp(
-				path.join(this.filePath),
-				path.join(
-					this.routeGenerator.pagesDir,
-					this.relativeFilePathFromRoutesDir
-				)
-			)
-			return
-		}
-
-		const ast = await this.getAst()
-		const { routesDir } = this.routeGenerator
-
 		try {
+			// `_app.tsx` and `_document.tsx` need to be copied over
+			if (['_app', '_document'].includes(path.parse(this.filePath).name)) {
+				await fs.promises.mkdir(this.routeGenerator.pagesDir, { recursive: true })
+				await fs.promises.cp(
+					path.join(this.filePath),
+					path.join(
+						this.routeGenerator.pagesDir,
+						this.relativeFilePathFromRoutesDir
+					)
+				)
+				return
+			}
+
+			const ast = await this.getAst()
+			const { routesDir } = this.routeGenerator
 			// If the page is an api/ page, we just re-export either the default export of the route file
 			if (this.relativeFilePathFromRoutesDir.startsWith('api/')) {
 				const exportDefaultDeclaration = ast.body.find(
@@ -351,8 +350,7 @@ export class RouteFile {
 					)
 				} else {
 					pagesFileTopLevelStatements.push(
-						`export default ${
-							this.routeGenerator.componentWrapperFunction.name
+						`export default ${this.routeGenerator.componentWrapperFunction.name
 						}((props) => (${getComponentJsxString(layoutFilePaths)}))`
 					)
 				}
