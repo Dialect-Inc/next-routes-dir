@@ -408,55 +408,62 @@ export class RouteGenerator {
 		the `/app` directory introduced in Next.js 13 that has some performance problems while in beta)
 	*/
 	async generatePagesDirectory() {
-		const routeFilePathsData = await readdirp.promise(this.routesDir, {
-			type: 'files',
-		})
-
-		// Create a map of all the route pages
-		const routeFileToPagesFile = new Map<string, string>()
-		const routeFiles: RouteFile[] = []
-		for (const { fullPath: routeFilePath } of routeFilePathsData) {
-			const routeFile = new RouteFile({
-				filePath: routeFilePath,
-				routeGenerator: this,
+		try {
+			const routeFilePathsData = await readdirp.promise(this.routesDir, {
+				type: 'files',
 			})
-			routeFileToPagesFile.set(
-				routeFilePath,
-				routeFile.getTargetPagesFilePath()
-			)
-			routeFiles.push(routeFile)
-		}
 
-		// If the `pages/` directory already exists, iterate through it and delete any files which don't have a corresponding `routes/` file
-		if (fs.existsSync(this.pagesDir)) {
-			/**
+			// Create a map of all the route pages
+			const routeFileToPagesFile = new Map<string, string>()
+			const routeFiles: RouteFile[] = []
+			for (const { fullPath: routeFilePath } of routeFilePathsData) {
+				const routeFile = new RouteFile({
+					filePath: routeFilePath,
+					routeGenerator: this,
+				})
+				routeFileToPagesFile.set(
+					routeFilePath,
+					routeFile.getTargetPagesFilePath()
+				)
+				routeFiles.push(routeFile)
+			}
+
+			// If the `pages/` directory already exists, iterate through it and delete any files which don't have a corresponding `routes/` file
+			if (fs.existsSync(this.pagesDir)) {
+				/**
 				A map of the relative `pages/` file path (e.g. `blog/slug.tsx`) to the corresponding relative `routes/` file path (e.g. `blog/[slug]/page.tsx`)
 
 				The inverse of `routeFileToPagesFile`
 			*/
-			const pagesFileToRouteFile = new Map(
-				[...routeFileToPagesFile.entries()].map(([key, value]) => [value, key])
-			)
-			const generatedPagesFiles = await readdirp.promise(this.pagesDir, {
-				type: 'files',
-			})
-
-			await Promise.all(
-				generatedPagesFiles.map(async (generatedPagesFile) => {
-					const generatedPagesFileRelativePath = path.relative(
-						this.pagesDir,
-						generatedPagesFile.fullPath
-					)
-					if (!pagesFileToRouteFile.has(generatedPagesFileRelativePath)) {
-						await fs.promises.rm(generatedPagesFile.fullPath)
-					}
+				const pagesFileToRouteFile = new Map(
+					[...routeFileToPagesFile.entries()].map(([key, value]) => [
+						value,
+						key,
+					])
+				)
+				const generatedPagesFiles = await readdirp.promise(this.pagesDir, {
+					type: 'files',
 				})
-			)
-		}
 
-		// Generate the `pages/` files for each `routes/` file
-		await Promise.all(
-			routeFiles.map(async (routeFile) => routeFile.generateTargetPagesFile())
-		)
+				await Promise.all(
+					generatedPagesFiles.map(async (generatedPagesFile) => {
+						const generatedPagesFileRelativePath = path.relative(
+							this.pagesDir,
+							generatedPagesFile.fullPath
+						)
+						if (!pagesFileToRouteFile.has(generatedPagesFileRelativePath)) {
+							await fs.promises.rm(generatedPagesFile.fullPath)
+						}
+					})
+				)
+			}
+
+			// Generate the `pages/` files for each `routes/` file
+			await Promise.all(
+				routeFiles.map(async (routeFile) => routeFile.generateTargetPagesFile())
+			)
+		} catch (error) {
+			console.error('Error while generating pages directory:', error)
+		}
 	}
 }
