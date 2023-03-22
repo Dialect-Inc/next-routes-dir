@@ -10,9 +10,9 @@ import * as esbuild from 'esbuild'
 import { outdent } from 'outdent'
 import readdirp from 'readdirp'
 import invariant from 'tiny-invariant'
+import trimExtension from 'trim-extension'
 
 import { type GenerateOptions } from '~/types/options.js'
-import { trimExtension } from '~/utils/extension.js'
 
 export class RouteFile {
 	filePath: string
@@ -155,7 +155,9 @@ export class RouteFile {
 		try {
 			// `_app.tsx` and `_document.tsx` need to be copied over
 			if (['_app', '_document'].includes(path.parse(this.filePath).name)) {
-				await fs.promises.mkdir(this.routeGenerator.pagesDir, { recursive: true })
+				await fs.promises.mkdir(this.routeGenerator.pagesDir, {
+					recursive: true,
+				})
 				await fs.promises.cp(
 					path.join(this.filePath),
 					path.join(
@@ -350,7 +352,8 @@ export class RouteFile {
 					)
 				} else {
 					pagesFileTopLevelStatements.push(
-						`export default ${this.routeGenerator.componentWrapperFunction.name
+						`export default ${
+							this.routeGenerator.componentWrapperFunction.name
 						}((props) => (${getComponentJsxString(layoutFilePaths)}))`
 					)
 				}
