@@ -85,7 +85,6 @@ export class RouteFile {
 	async hasDefaultExport() {
 		const fileAst = await this.getAst()
 
-		// Check if the route file exports a `getServerSideProps` function
 		return fileAst.body.some(
 			(node: any) => node.type === 'ExportDefaultDeclaration'
 		)
@@ -104,7 +103,7 @@ export class RouteFile {
 			.slice(0, -1)
 			.entries()) {
 			// Associate the file with a specific route group
-			if (routeSegment.startsWith('(') && routeSegment.endsWith(')')) {
+			if (/^\(.*\)$/.test(routeSegment)) {
 				// Joining up the segments we already visited to create the route group folder path
 				const routeGroupFolderPath = routeFilePathSegments
 					.slice(0, routeSegmentIndex + 1)
@@ -381,7 +380,7 @@ export class RouteFile {
 		const pagesFilePathSegments: string[] = []
 
 		for (const routeSegment of routeFilePathSegments.slice(0, -1)) {
-			if (!(routeSegment.startsWith('(') && routeSegment.endsWith(')'))) {
+			if (!/^\(.*\)$/.test(routeSegment)) {
 				pagesFilePathSegments.push(routeSegment)
 			}
 		}
