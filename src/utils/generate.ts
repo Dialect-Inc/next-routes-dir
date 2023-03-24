@@ -94,7 +94,10 @@ export class RouteFile {
 		const routeFolders: string[] = []
 
 		let currentRouteRelativeFilePath = this.relativeFilePathFromRoutesDir
-		while (currentRouteRelativeFilePath !== '/') {
+		while (
+			currentRouteRelativeFilePath !== '/' &&
+			currentRouteRelativeFilePath !== ''
+		) {
 			// eslint-disable-next-line no-await-in-loop -- we need to check routes in order
 			const stats = await fs.promises.stat(
 				path.join(this.routeGenerator.routesDir, currentRouteRelativeFilePath)

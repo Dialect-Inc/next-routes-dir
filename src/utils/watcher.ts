@@ -41,6 +41,6 @@ export async function setupRoutesDirectoryWatcher(options: GenerateOptions) {
 			}
 		})
 
-	process.stderr.write('Generated `pages/` from `routes/`\n')
 	await routeGenerator.generatePagesDirectory()
+	process.stderr.write('Generated `pages/` from `routes/`\n')
 }
