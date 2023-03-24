@@ -90,7 +90,27 @@ export class RouteFile {
 		)
 	}
 
-	getRouteGroups() {
+	async getRouteFolderRelativePaths() {
+		const routeFolders: string[] = []
+
+		let currentRouteRelativeFilePath = this.relativeFilePathFromRoutesDir
+		while (currentRouteRelativeFilePath !== '/') {
+			// eslint-disable-next-line no-await-in-loop -- we need to check routes in order
+			const stats = await fs.promises.stat(
+				path.join(this.routeGenerator.routesDir, currentRouteRelativeFilePath)
+			)
+
+			if (stats.isDirectory()) {
+				routeFolders.push(currentRouteRelativeFilePath)
+			}
+
+			currentRouteRelativeFilePath = path.dirname(currentRouteRelativeFilePath)
+		}
+
+		return routeFolders
+	}
+
+	getRouteGroupRelativePaths() {
 		const routeFilePathSegments = this.relativeFilePathFromRoutesDir.split(
 			path.sep
 		)
@@ -191,17 +211,25 @@ export class RouteFile {
 				return
 			}
 
-			const routeGroups = this.getRouteGroups()
+			const routeFolderRelativePaths = await this.getRouteFolderRelativePaths()
 
-			const layoutFilePaths = routeGroups
-				.map((routeGroupPath) => {
+			const layoutFilePaths = routeFolderRelativePaths
+				.map((routeFolderRelativePath) => {
 					for (const extension of ['tsx', 'jsx', 'ts', 'js']) {
 						if (
 							fs.existsSync(
-								path.join(routesDir, routeGroupPath, `layout.${extension}`)
+								path.join(
+									routesDir,
+									routeFolderRelativePath,
+									`layout.${extension}`
+								)
 							)
 						) {
-							return path.join(routesDir, routeGroupPath, `layout.${extension}`)
+							return path.join(
+								routesDir,
+								routeFolderRelativePath,
+								`layout.${extension}`
+							)
 						}
 					}
 
