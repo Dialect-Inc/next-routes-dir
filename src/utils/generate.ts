@@ -5,9 +5,10 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import * as acorn from 'acorn'
-import { camelCase, pascalCase } from 'change-case'
+import camelCase from 'camelcase'
 import * as esbuild from 'esbuild'
 import { outdent } from 'outdent'
+import pascalCase from 'pascalcase'
 import readdirp from 'readdirp'
 import invariant from 'tiny-invariant'
 import trimExtension from 'trim-extension'
@@ -110,7 +111,7 @@ export class RouteFile {
 			currentRouteRelativeFilePath = path.dirname(currentRouteRelativeFilePath)
 		}
 
-		return routeFolders
+		return routeFolders.reverse()
 	}
 
 	getRouteGroupRelativePaths() {
