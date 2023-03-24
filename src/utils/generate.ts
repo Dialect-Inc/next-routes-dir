@@ -96,7 +96,7 @@ export class RouteFile {
 		let currentRouteRelativeFilePath = this.relativeFilePathFromRoutesDir
 		while (
 			currentRouteRelativeFilePath !== '/' &&
-			currentRouteRelativeFilePath !== ''
+			currentRouteRelativeFilePath !== '.'
 		) {
 			// eslint-disable-next-line no-await-in-loop -- we need to check routes in order
 			const stats = await fs.promises.stat(
