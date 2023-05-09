@@ -40,47 +40,33 @@ export class RouteFile {
 		})
 	}
 
-	async hasGetServerSidePropsExport() {
+	async getNamedExportsVariableNames() {
 		const fileAst = await this.getAst()
 
 		// Check if the route file exports a `getServerSideProps` function
-		const exportNamedDeclaration = fileAst.body.find(
-			(node: any) => node.type === 'ExportNamedDeclaration'
-		)
-
-		const getServerSidePropsExportNamedDeclaration =
-			exportNamedDeclaration?.declaration
-
-		if (getServerSidePropsExportNamedDeclaration === undefined) {
-			return false
-		}
-
-		const hasVariableDeclaration =
-			getServerSidePropsExportNamedDeclaration.declarations?.some(
-				(declaration: any) => declaration.id?.name === 'getServerSideProps'
+		const namedExportsVariableNames = fileAst.body
+			.filter(
+				(node: any) =>
+					node.type === 'ExportNamedDeclaration' &&
+					node.declaration?.declarations !== undefined
+			)
+			.flatMap((node: any) =>
+				node.declaration.declarations.map(
+					(declaration: any) => declaration.id?.name
+				)
 			)
 
-		if (hasVariableDeclaration) {
-			return true
-		}
+		return namedExportsVariableNames
+	}
 
-		const hasFunctionDeclaration =
-			getServerSidePropsExportNamedDeclaration.id?.name === 'getServerSideProps'
+	async hasGetServerSidePropsExport() {
+		const namedExportsVariableNames = await this.getNamedExportsVariableNames()
+		return namedExportsVariableNames.includes('getServerSideProps')
+	}
 
-		if (hasFunctionDeclaration) {
-			return true
-		}
-
-		const hasExportSpecifier =
-			getServerSidePropsExportNamedDeclaration.specifiers?.some(
-				(specifier: any) => specifier.exported.name === 'getServerSideProps'
-			)
-
-		if (hasExportSpecifier) {
-			return true
-		}
-
-		return false
+	async hasConfigExport() {
+		const namedExportsVariableNames = await this.getNamedExportsVariableNames()
+		return namedExportsVariableNames.includes('config')
 	}
 
 	async hasDefaultExport() {
@@ -358,6 +344,12 @@ export class RouteFile {
 						`export const getServerSideProps = ${name}(${mergedGetServerSidePropsFunction})`
 					)
 				}
+			}
+
+			if (await this.hasConfigExport()) {
+				pagesFileTopLevelStatements.push(
+					`export { config } from '${trimExtension(this.filePath)}'`
+				)
 			}
 
 			if (hasPageComponent) {
