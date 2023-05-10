@@ -198,6 +198,7 @@ export class RouteFile {
 				}
 
 				await this.writeTargetPagesFile(pagesFileLines.join("\n"));
+				return;
 			}
 			// If the page is not in api/, only `page.tsx` files can be generated
 			else if (trimExtension(path.basename(this.filePath)) !== "page") {
